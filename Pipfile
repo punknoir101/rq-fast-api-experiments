@@ -10,6 +10,8 @@ sqlalchemy = "*"
 databases = "*"
 asyncpg = "*"
 psycopg2 = "*"
+redis = "*"
+rq = "*"
 
 [dev-packages]
 

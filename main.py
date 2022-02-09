@@ -3,9 +3,9 @@ from typing import Optional
 import sqlalchemy
 import databases
 from fastapi import FastAPI
-from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import UUID as GUID
-
+from redis import Redis
+from rq import Queue
 from models import Steuererklaerung, Status, SteuererklaerungCreate
 
 DATABASE_URL = "postgresql://postgres:postgres@localhost/db"
@@ -25,6 +25,13 @@ engine = sqlalchemy.create_engine(
     DATABASE_URL, connect_args={}
 )
 metadata.create_all(engine)
+
+
+def send_steuererklaerung(id):
+    return 'steuererklaerung send ' + 'with ' + id
+
+
+q = Queue(connection=Redis())
 
 app = FastAPI()
 
@@ -61,4 +68,5 @@ async def create_steuererklaerung(steuer: SteuererklaerungCreate):
     ident = uuid4()
     query = steuererklaerungen.insert().values(id=ident, payload=steuer.payload, status=Status.new)
     await database.execute(query)
+    q.enqueue(send_steuererklaerung, ident)
     return {**steuer.dict(), "id": ident, "status": Status.new}
