@@ -1,37 +1,16 @@
-from datetime import timedelta
-from uuid import UUID, uuid4
-from typing import Optional
-import sqlalchemy
-import databases
+from uuid import UUID
+
 from fastapi import FastAPI
-from sqlalchemy.dialects.postgresql import UUID as GUID
+from fastapi.params import Depends
 from redis import Redis
 from rq import Queue, Worker
-from models import Steuererklaerung, Status, SteuererklaerungCreate, test_method
+from sqlalchemy.orm import Session
+import models
+from models import SteuererklaerungCreateDto, SteuererklaerungDto
+from repository import SteuererklaerungRepository
+from database import SessionLocal, engine
 
-DATABASE_URL = "postgresql://postgres:postgres@localhost/db"
-database = databases.Database(DATABASE_URL)
-
-metadata = sqlalchemy.MetaData()
-
-steuererklaerungen = sqlalchemy.Table(
-    "steuererklaerungen",
-    metadata,
-    sqlalchemy.Column("id", GUID, primary_key=True),
-    sqlalchemy.Column("payload", sqlalchemy.String),
-    sqlalchemy.Column("status", sqlalchemy.Enum(Status)),
-)
-
-engine = sqlalchemy.create_engine(
-    DATABASE_URL, connect_args={}
-)
-metadata.create_all(engine)
-
-
-def send_steuererklaerung(id):
-    test_method()
-    print(f'steuererklaerung send ${id}')
-
+models.BaseDbEntity.metadata.create_all(bind=engine)
 
 redis = Redis()
 q = Queue('steuer send', connection=redis)
@@ -41,39 +20,38 @@ workers = Worker.count(connection=redis)
 app = FastAPI()
 
 
-@app.on_event("startup")
-async def startup():
-    await database.connect()
+# Dependency
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
-@app.on_event("shutdown")
-async def shutdown():
-    await database.disconnect()
+def send_steuererklaerung(entity_id):
+    # db = SessionLocal()
+    # entity = SteuererklaerungRepository().get_by_id(db, entity_id)
+    # print(entity.__str__)
+    # entity = models.Status.success
+    # result = SteuererklaerungRepository().create(db, entity)
+    print(entity_id)
 
 
-@app.get("/")
-def read_root():
-    return {"Hello": "World"}
-
-
-@app.get("/items/{item_id}")
-def read_item(item_id: int, q: Optional[str] = None):
-    return {"item_id": item_id, "q": q}
+@app.get("/steuererklaerung")
+def get_steuererklaerung(skip: int, limit: int, db: Session = Depends(get_db)):
+    return SteuererklaerungRepository().get(db, skip, limit)
 
 
 @app.get("/steuererklaerung/{id}")
-def get_steuererklaerung(id: UUID):
-    steuer = Steuererklaerung(id=UUID('39599b34-d189-40ad-b1d8-0c7494f14313'), payload='payload', status=Status.new)
-
-    return steuer
+def get_steuererklaerung(entity_id: UUID, db: Session = Depends(get_db)):
+    return SteuererklaerungRepository().get_by_id(db, entity_id)
 
 
-@app.post("/steuererklaerung", response_model=Steuererklaerung)
-async def create_steuererklaerung(steuer: SteuererklaerungCreate):
-    ident = uuid4()
-    query = steuererklaerungen.insert().values(id=ident, payload=steuer.payload, status=Status.new)
-    await database.execute(query)
-    # q.enqueue(send_steuererklaerung, ident)
+@app.post("/steuererklaerung", response_model=SteuererklaerungDto)
+async def create_steuererklaerung(steuer: SteuererklaerungCreateDto, db: Session = Depends(get_db)):
+    result = SteuererklaerungRepository().create(db, steuer)
+    q.enqueue(send_steuererklaerung, result.id)
     # q.enqueue_at(datetime(2022, 2, 9, 19, 10), send_steuererklaerung, ident)
-    q.enqueue_in(timedelta(seconds=30), send_steuererklaerung, ident)
-    return {**steuer.dict(), "id": ident, "status": Status.new}
+    # q.enqueue_in(timedelta(seconds=30), send_steuererklaerung, ident)
+    return result

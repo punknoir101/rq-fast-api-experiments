@@ -1,7 +1,12 @@
+from enum import Enum
 from uuid import UUID
 
-from enum import Enum
+import sqlalchemy
 from pydantic import BaseModel
+from sqlalchemy import Column, String
+from sqlalchemy.dialects.postgresql import UUID as GUID
+
+from database import BaseDbEntity
 
 
 class Status(Enum):
@@ -12,15 +17,31 @@ class Status(Enum):
     success = 4
 
 
-class Steuererklaerung(BaseModel):
+class Steuererklaerung(BaseDbEntity):
+    __tablename__ = "steuererklaerungen"
+
+    id = Column(GUID(as_uuid=True),
+                primary_key=True,
+                server_default=sqlalchemy.text("gen_random_uuid()"), )
+    userId = Column(String)
+    payload = Column(String)
+    status = Column(sqlalchemy.Enum(Status))
+    
+    
+class SteuererklaerungDto(BaseModel):
     id: UUID
+    userId: str
     payload: str
     status: Status
 
+    class Config:
+        orm_mode = True
 
-class SteuererklaerungCreate(BaseModel):
+
+class SteuererklaerungCreateDto(BaseModel):
+    userId: str
     payload: str
 
+    class Config:
+        orm_mode = True
 
-def test_method():
-    print("test method call")
