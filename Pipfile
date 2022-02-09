@@ -13,6 +13,7 @@ psycopg2 = "*"
 redis = "*"
 rq = "*"
 rq-dashboard = "*"
+importlib-metadata = "*"
 
 [dev-packages]
 

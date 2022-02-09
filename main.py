@@ -1,3 +1,4 @@
+from datetime import timedelta
 from uuid import UUID, uuid4
 from typing import Optional
 import sqlalchemy
@@ -37,7 +38,6 @@ q = Queue('steuer send', connection=redis)
 worker = Worker([q], connection=redis, name='worker-foo')
 workers = Worker.count(connection=redis)
 
-
 app = FastAPI()
 
 
@@ -73,5 +73,7 @@ async def create_steuererklaerung(steuer: SteuererklaerungCreate):
     ident = uuid4()
     query = steuererklaerungen.insert().values(id=ident, payload=steuer.payload, status=Status.new)
     await database.execute(query)
-    q.enqueue(send_steuererklaerung, ident)
+    # q.enqueue(send_steuererklaerung, ident)
+    # q.enqueue_at(datetime(2022, 2, 9, 19, 10), send_steuererklaerung, ident)
+    q.enqueue_in(timedelta(seconds=30), send_steuererklaerung, ident)
     return {**steuer.dict(), "id": ident, "status": Status.new}
