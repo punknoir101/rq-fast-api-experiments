@@ -5,8 +5,8 @@ import databases
 from fastapi import FastAPI
 from sqlalchemy.dialects.postgresql import UUID as GUID
 from redis import Redis
-from rq import Queue
-from models import Steuererklaerung, Status, SteuererklaerungCreate
+from rq import Queue, Worker
+from models import Steuererklaerung, Status, SteuererklaerungCreate, test_method
 
 DATABASE_URL = "postgresql://postgres:postgres@localhost/db"
 database = databases.Database(DATABASE_URL)
@@ -28,10 +28,15 @@ metadata.create_all(engine)
 
 
 def send_steuererklaerung(id):
-    return 'steuererklaerung send ' + 'with ' + id
+    test_method()
+    print(f'steuererklaerung send ${id}')
 
 
-q = Queue(connection=Redis())
+redis = Redis()
+q = Queue('steuer send', connection=redis)
+worker = Worker([q], connection=redis, name='worker-foo')
+workers = Worker.count(connection=redis)
+
 
 app = FastAPI()
 

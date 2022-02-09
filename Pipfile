@@ -12,6 +12,7 @@ asyncpg = "*"
 psycopg2 = "*"
 redis = "*"
 rq = "*"
+rq-dashboard = "*"
 
 [dev-packages]
 

@@ -20,3 +20,7 @@ class Steuererklaerung(BaseModel):
 
 class SteuererklaerungCreate(BaseModel):
     payload: str
+
+
+def test_method():
+    print("test method call")
