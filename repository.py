@@ -19,6 +19,14 @@ class SteuererklaerungRepository:
         db.refresh(entity)
         return entity
 
+    def update(self, db: Session, entity_id: UUID, update_dto: SteuererklaerungDto):
+        current = db.query(Steuererklaerung).filter(Steuererklaerung.id == entity_id).first()
+        current.status = update_dto.status
+        current.payload = update_dto.payload
+        db.commit()
+        db.refresh(current)
+        return current
+
     def delete(self, db: Session, entity_id: UUID):
         entity = db.query(Steuererklaerung).filter(Steuererklaerung.id == entity_id).first()
         db.delete(entity)
